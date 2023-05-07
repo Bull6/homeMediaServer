@@ -1,0 +1,165 @@
+version: "3.7" 
+services: 
+  plex: 
+    image: linuxserver/plex
+    container_name: plex
+    environment: 
+      - VERSION=docker 
+      - TZ="Asia/Yekaterinburg"
+      - PLEX_CLAIM="claim-T8pWwukyYtVxynF6fbBS>"
+    volumes: 
+      - ./plex:/config
+      - /root/path/to/media:/tvshows
+      - /root/path/to/media:/media
+      - ./plex/transcode:/transcode
+    network_mode: "host"
+    restart: unless-stopped
+  
+  jackett:
+    image: linuxserver/jackett
+    container_name: jackett
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ="Asia/Yekaterinburg"
+      - AUTO_UPDATE=true #optional
+      - RUN_OPTS= #optional
+    volumes:
+      - ./jackett:/config
+      - /root/path/to/media:/downloads
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
+  
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ="Asia/Yekaterinburg"
+    volumes:
+      - ./sonarr:/config
+      - /root/path/to/media:/tvshows
+      - /root/path/to/media:/media #optional
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
+  
+  lidarr:
+    image: linuxserver/lidarr
+    container_name: lidarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ="Asia/Yekaterinburg"
+    volumes:
+      - ./lidarr:/config
+      - /root/path/to/media:/tvshows
+      - /root/path/to/media:/media #optional
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
+  
+  readarr:
+    image: linuxserver/readarr:develop
+    container_name: readarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ="Asia/Yekaterinburg"
+    volumes:
+      - ./readarr:/config
+      - /root/path/to/media:/tvshows
+      - /root/path/to/media:/media #optional
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
+  
+  radarr:
+    image: linuxserver/radarr
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ="Asia/Yekaterinburg"
+    volumes:
+      - ./radarr:/config
+      - /root/path/to/media:/tvshows
+      - /root/path/to/media:/media #optional
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
+  
+  qbittorrent:
+    image: linuxserver/qbittorrent
+    container_name: qbittorrent
+    mem_limit: 3000m
+    mem_reservation: 128M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ="Asia/Yekaterinburg"
+      - WEBUI_PORT=8080
+    volumes:
+      - ./qbittorrent:/config
+      - /root/path/to/media:/tvshows
+      - /root/path/to/media:/media
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
+  
+  wireguard:
+    image: linuxserver/wireguard
+    container_name: wireguard
+    environment:
+      - TZ=Asia/Yekaterinburg
+      - PEERDNS=auto
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    ports:
+      - 9117:9117 #Jackett
+      - 7878:7878 #Radarr
+      - 8686:8686 #Lidarr
+      - 8787:8787 #Readarr
+      - 8989:8989 #Sonarr
+      - 8080:8080 #qBitTorrent
+      - 6882:6882
+      - 6882:6882/udp
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - /lib/modules:/lib/modules
+      - ./vpn/wireguard:/config
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv6.conf.all.disable_ipv6=0
+    restart: unless-stopped
+  
+  nginx:
+    image: nginx
+    container_name: nginx
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    links:
+      - wireguard:jackett
+      - wireguard:radarr
+      - wireguard:sonarr
+      - wireguard:qbittorrent
+      - wireguard:readarr
+      - wireguard:lidarr
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    restart: always
+    depends_on:
+      - wireguard
+  

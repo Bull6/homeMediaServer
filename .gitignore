@@ -1,0 +1,8 @@
+vpn/
+*torrent/*/*
+!*/*/qBittorrent.conf
+*arr/*
+!*/config.xml
+jackett/*/*
+plex
+!jackett/Jackett/ServerConfig.json
